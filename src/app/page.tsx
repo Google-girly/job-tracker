@@ -1,103 +1,118 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Board } from "@/components/Board";
+import { StatusSelect } from "@/components/StatusSelect";
+import { listApplications } from "@/lib/db";
+import { scoreColor, type Application } from "@/lib/statuses";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+function stats(apps: Application[]) {
+  const applied = apps.filter((a) => a.status !== "saved");
+  const responded = applied.filter((a) => ["oa", "interview", "offer", "rejected"].includes(a.status));
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return [
+    { label: "Applied", value: applied.length },
+    { label: "This week", value: applied.filter((a) => a.applied_date && a.applied_date >= weekAgo).length },
+    { label: "Response rate", value: applied.length ? `${Math.round((responded.length / applied.length) * 100)}%` : "–" },
+    { label: "Interviews", value: apps.filter((a) => a.status === "interview" || a.status === "offer").length },
+    { label: "Offers", value: apps.filter((a) => a.status === "offer").length },
+  ];
+}
+
+export default async function Home({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+  const { view = "board" } = await searchParams;
+  const apps = listApplications();
+
+  const tab = (id: string, label: string) => (
+    <Link
+      href={`/?view=${id}`}
+      className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+        view === id ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900" : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {stats(apps).map((s) => (
+          <div key={s.label} className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+            <p className="text-xs uppercase tracking-wide text-zinc-500">{s.label}</p>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{s.value}</p>
+          </div>
+        ))}
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <div className="flex gap-1">
+        {tab("board", "Board")}
+        {tab("table", "Table")}
+      </div>
+
+      {apps.length === 0 ? (
+        <div className="rounded-lg border border-dashed border-zinc-300 p-12 text-center dark:border-zinc-700">
+          <p className="text-zinc-500">No applications yet.</p>
+          <Link href="/applications/new" className="mt-2 inline-block text-sm font-medium underline">
+            Add your first one
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      ) : view === "table" ? (
+        <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500 dark:bg-zinc-900">
+              <tr>
+                <th className="px-4 py-3">Company</th>
+                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Match</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Applied</th>
+                <th className="px-4 py-3">Location</th>
+                <th className="px-4 py-3">Source</th>
+                <th className="px-4 py-3" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {apps.map((a) => (
+                <tr key={a.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
+                  <td className="px-4 py-3 font-medium">
+                    {a.url ? (
+                      <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">
+                        {a.company} ↗
+                      </a>
+                    ) : (
+                      a.company
+                    )}
+                  </td>
+                  <td className="px-4 py-3">{a.role}</td>
+                  <td className="px-4 py-3">
+                    {a.match_score != null ? (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${scoreColor(a.match_score)}`}>
+                        {a.match_score}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-400">–</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <StatusSelect id={a.id} status={a.status} />
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-zinc-500">{a.applied_date ?? "–"}</td>
+                  <td className="px-4 py-3 text-zinc-500">{a.location ?? "–"}</td>
+                  <td className="px-4 py-3 text-zinc-500">{a.source ?? "–"}</td>
+                  <td className="px-4 py-3 text-right">
+                    <Link href={`/applications/${a.id}`} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">
+                      Edit
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <Board applications={apps} />
+      )}
     </div>
   );
 }

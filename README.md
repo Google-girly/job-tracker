@@ -1,36 +1,66 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Job Tracker
 
-## Getting Started
+A personal dashboard for tracking new grad job applications.
 
-First, run the development server:
+## Features
+
+- Add, edit, and delete applications (company, role, link, location, source, date applied, notes)
+- Paste a job link to autofill company, role, and location (Greenhouse, Lever, Ashby, Workday, and most career pages)
+- Attach the resume and cover letter you sent to each job (stored in `data/uploads/`, git-ignored)
+- Resume matching: Claude scores each job 0–100 against your resume, with matched/missing skills, red flags (years of experience, clearance, sponsorship…), and tailoring tips. New jobs are scored automatically in the background.
+- Kanban board: drag cards between Saved → Applied → OA → Interviewing → Offer / Rejected / Ghosted
+- Table view with inline status changes
+- Stats: total applied, applied this week, response rate, interviews, offers
+
+## Stack
+
+- [Next.js](https://nextjs.org) (App Router, Server Actions) + TypeScript
+- Tailwind CSS
+- SQLite via Node's built-in `node:sqlite` (data lives in `data/tracker.db`, which is git-ignored)
+- Claude API (`@anthropic-ai/sdk`) with structured outputs for match scoring
+
+## Running locally
+
+Requires Node 24+.
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open http://localhost:3000.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For match scoring, add an Anthropic API key to `.env.local` (git-ignored):
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+ANTHROPIC_API_KEY=sk-ant-...
+# Optional, defaults to claude-opus-5-5:
+# MATCH_MODEL=claude-haiku-5-5
+```
 
-## Learn More
+Then add your resume on the **My resume** page.
 
-To learn more about Next.js, take a look at the following resources:
+## Project layout
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+src/
+  app/
+    page.tsx                  dashboard (stats + board/table)
+    actions.ts                server actions (create/update/delete/status)
+    applications/new/         add form
+    applications/[id]/        edit form
+  components/                 Board, ApplicationForm, StatusSelect, DeleteButton
+  lib/
+    db.ts                     all database access
+    extract.ts                job link autofill
+    match.ts                  resume ↔ job scoring with Claude
+    resume.ts                 base resume storage + PDF/DOCX text extraction
+    statuses.ts               status pipeline + shared types
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Roadmap
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] Deploy (Vercel) with login (Supabase auth + Postgres)
+- [ ] Job scraper (GitHub new grad lists, Greenhouse/Lever/Ashby APIs) feeding a "Suggested" column
+- [ ] Follow-up reminders
+- [ ] Public portfolio pages
