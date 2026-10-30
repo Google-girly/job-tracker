@@ -17,16 +17,13 @@ function db() {
 // Timestamps come back as "YYYY-MM-DD HH:MM:SS" UTC strings, which the UI slices and compares.
 const ts = (column: string) => `to_char(${column} at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS') as ${column}`;
 const APPLICATION_COLUMNS = `id, company, role, url, location, source, status, applied_date::text as applied_date, notes,
-  description, match_score, match_json, ${ts("matched_at")}, ${ts("created_at")}, ${ts("updated_at")}`;
+  description, ${ts("created_at")}, ${ts("updated_at")}`;
 const DOCUMENT_COLUMNS = `id, application_id, kind, filename, stored_name, mime_type, size, ${ts("created_at")}`;
 
 // Dates like "applied today" follow this time zone rather than the server's (UTC on Vercel).
 const TIME_ZONE = process.env.APP_TIMEZONE || "America/Los_Angeles";
 
-export type ApplicationInput = Omit<
-  Application,
-  "id" | "created_at" | "updated_at" | "doc_count" | "match_score" | "match_json" | "matched_at"
->;
+export type ApplicationInput = Omit<Application, "id" | "created_at" | "updated_at" | "doc_count">;
 
 export async function listApplications(): Promise<Application[]> {
   const sql = db();
@@ -53,16 +50,11 @@ export async function createApplication(input: ApplicationInput): Promise<number
 }
 
 export async function updateApplication(id: number, input: ApplicationInput) {
-  const description = input.description;
   await db()`
     update applications
     set company = ${input.company}, role = ${input.role}, url = ${input.url}, location = ${input.location},
         source = ${input.source}, status = ${input.status}, applied_date = ${input.applied_date}, notes = ${input.notes},
-        -- A new job description makes the old match score meaningless.
-        match_score = case when description is not distinct from ${description}::text then match_score end,
-        match_json  = case when description is not distinct from ${description}::text then match_json end,
-        matched_at  = case when description is not distinct from ${description}::text then matched_at end,
-        description = ${description},
+        description = ${input.description},
         updated_at = now()
     where id = ${id}`;
 }
@@ -81,10 +73,6 @@ export async function setStatus(id: number, status: Status) {
 
 export async function deleteApplication(id: number) {
   await db()`delete from applications where id = ${id}`;
-}
-
-export async function saveMatch(id: number, score: number, json: string) {
-  await db()`update applications set match_score = ${score}, match_json = ${json}, matched_at = now() where id = ${id}`;
 }
 
 export async function listDocuments(applicationId: number): Promise<AppDocument[]> {

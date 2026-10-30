@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useOptimistic, useState, startTransition } from "react";
 import { setStatus } from "@/app/actions";
-import { STATUSES, scoreColor, type Application, type Status } from "@/lib/statuses";
+import { STATUSES, type Application, type Status } from "@/lib/statuses";
 
 export function Board({ applications }: { applications: Application[] }) {
   const [apps, moveOptimistic] = useOptimistic(applications, (current, move: { id: number; status: Status }) =>
@@ -53,14 +53,7 @@ export function Board({ applications }: { applications: Application[] }) {
                 onDragStart={(e) => e.dataTransfer.setData("text/plain", String(a.id))}
                 className="cursor-grab rounded-md border border-zinc-200 bg-white p-3 shadow-sm hover:border-zinc-400 active:cursor-grabbing dark:border-zinc-700 dark:bg-zinc-950"
               >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium">{a.company}</p>
-                  {a.match_score != null && (
-                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${scoreColor(a.match_score)}`}>
-                      {a.match_score}
-                    </span>
-                  )}
-                </div>
+                <p className="font-medium">{a.company}</p>
                 <p className="text-sm text-zinc-600 dark:text-zinc-400">{a.role}</p>
                 {Boolean(a.location || a.applied_date || a.doc_count) && (
                   <p className="mt-1 text-xs text-zinc-500">

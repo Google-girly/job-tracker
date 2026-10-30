@@ -7,7 +7,7 @@ A personal dashboard for tracking new grad job applications.
 - Add, edit, and delete applications (company, role, link, location, source, date applied, notes)
 - Paste a job link to autofill company, role, and location (Greenhouse, Lever, Ashby, Workday, and most career pages)
 - Attach the resume and cover letter you sent to each job (private Supabase Storage bucket)
-- Resume matching: Claude scores each job 0–100 against your resume, with matched/missing skills, red flags (years of experience, clearance, sponsorship…), and tailoring tips. New jobs are scored automatically in the background.
+- Wishlist: paste a job link to save it; shown in a panel beside the board and at /wishlist, with a one-click Apply link
 - Kanban board: drag cards between Saved → Applied → OA → Interviewing → Offer / Rejected / Ghosted
 - Table view with inline status changes
 - Stats: total applied, applied this week, response rate, interviews, offers
@@ -19,7 +19,6 @@ A personal dashboard for tracking new grad job applications.
 - Tailwind CSS
 - Supabase: Postgres (via [postgres.js](https://github.com/porsager/postgres)), Storage, and Auth
 - Deployed on Vercel
-- Claude API (`@anthropic-ai/sdk`) with structured outputs for match scoring
 
 ## Setup
 
@@ -36,10 +35,7 @@ Requires Node 24+ and a Supabase project.
    SUPABASE_SERVICE_ROLE_KEY=...   # server-only
    # Who may sign in (comma-separated)
    ALLOWED_EMAIL=you@example.com
-   # Match scoring
-   ANTHROPIC_API_KEY=sk-ant-...
    # Optional
-   # MATCH_MODEL=claude-haiku-5-5            (default claude-opus-5-5)
    # APP_TIMEZONE=America/Los_Angeles
    ```
 
@@ -65,10 +61,10 @@ src/
     documents.ts              file uploads (Supabase Storage)
     auth.ts                   login checks (Supabase Auth)
     extract.ts                job link autofill
-    match.ts                  resume ↔ job scoring with Claude
-    resume.ts                 base resume storage + PDF/DOCX text extraction
     statuses.ts               status pipeline + shared types
 ```
+
+The `with-claude-api` branch has an earlier version that scores each job against your resume with the Claude API and uses Claude to read hard-to-fetch job pages.
 
 ## Roadmap
 

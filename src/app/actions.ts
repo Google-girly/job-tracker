@@ -2,14 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { isAllowedEmail } from "@/lib/allowed-email";
 import { requireUser } from "@/lib/auth";
 import * as db from "@/lib/db";
-import { checkFile, MAX_FILE_BYTES, removeApplicationFiles, removeDocument, saveDocument } from "@/lib/documents";
+import { checkFile, removeApplicationFiles, removeDocument, saveDocument } from "@/lib/documents";
 import { canonicalJobUrl, extractJob, type JobDetails } from "@/lib/extract";
-import { MatchError, scoreMatch } from "@/lib/match";
-import { extractResumeText, getResume, saveResume as storeResume } from "@/lib/resume";
 import { isDocumentKind, isStatus, type DocumentKind, type Status } from "@/lib/statuses";
 import { createAuthClient } from "@/lib/supabase/server";
 
@@ -71,10 +68,6 @@ export async function createApplication(_prev: FormState, form: FormData): Promi
 
   const id = await db.createApplication(input);
   await saveFiles(id, uploads);
-  // Score in the background so saving doesn't wait on the model.
-  if (input.description && (await getResume()) && process.env.ANTHROPIC_API_KEY) {
-    after(() => runScore(id).catch((e) => console.error(`Auto-scoring application ${id} failed:`, e)));
-  }
   revalidatePath("/");
   redirect("/");
 }
@@ -131,55 +124,6 @@ export async function deleteDocument(id: number) {
   revalidatePath("/");
 }
 
-async function runScore(id: number) {
-  const [app, resume] = await Promise.all([db.getApplication(id), getResume()]);
-  if (!app?.description || !resume) return;
-  const match = await scoreMatch(resume.text, { company: app.company, role: app.role, description: app.description });
-  await db.saveMatch(id, match.score, JSON.stringify(match));
-}
-
-export async function scoreApplication(id: number): Promise<{ error?: string }> {
-  await requireUser();
-  const app = await db.getApplication(id);
-  if (!app) return { error: "Application not found." };
-  if (!(await getResume())) return { error: "Add your resume first." };
-  if (!app.description) return { error: "Add the job description first." };
-  try {
-    await runScore(id);
-  } catch (e) {
-    if (e instanceof MatchError) return { error: e.message };
-    console.error(e);
-    return { error: "Scoring failed. Check the server logs for details." };
-  }
-  revalidatePath(`/applications/${id}`);
-  revalidatePath("/");
-  revalidatePath("/wishlist");
-  return {};
-}
-
-export async function saveResume(_prev: FormState & { saved?: boolean }, form: FormData): Promise<FormState & { saved?: boolean }> {
-  await requireUser();
-  const file = filesFrom(form, "file")[0];
-  let text = String(form.get("text") ?? "").trim();
-  let filename = (await getResume())?.filename ?? null;
-
-  if (file) {
-    if (file.size > MAX_FILE_BYTES) return { error: "That file is over 4 MB." };
-    try {
-      text = (await extractResumeText(file)).trim();
-    } catch (e) {
-      return { error: e instanceof Error ? e.message : "Couldn't read that file." };
-    }
-    if (!text) return { error: "Couldn't find any text in that file. If it's a scanned PDF, paste the text instead." };
-    filename = file.name;
-  }
-  if (!text) return { error: "Upload a file or paste your resume text." };
-
-  await storeResume(text, filename);
-  revalidatePath("/", "layout");
-  return { saved: true };
-}
-
 export async function deleteApplication(id: number, goHome = true) {
   await requireUser();
   await removeApplicationFiles(id);
@@ -189,9 +133,9 @@ export async function deleteApplication(id: number, goHome = true) {
   if (goHome) redirect("/");
 }
 
-export type WishlistState = { error?: string; notice?: string; added?: string };
+export type WishlistState = { error?: string; added?: string };
 
-// Paste a link: read the posting, save it as "Saved", and score it right away.
+// Paste a link: read the posting and save it as "Saved".
 export async function addToWishlist(_prev: WishlistState, form: FormData): Promise<WishlistState> {
   await requireUser();
   let url: string;
@@ -214,7 +158,7 @@ export async function addToWishlist(_prev: WishlistState, form: FormData): Promi
     return { error: "Couldn't read the job from that page. Use + Add application to enter it by hand." };
   }
 
-  const id = await db.createApplication({
+  await db.createApplication({
     company: details.company,
     role: details.role,
     url,
@@ -227,17 +171,7 @@ export async function addToWishlist(_prev: WishlistState, form: FormData): Promi
   });
   revalidatePath("/");
   revalidatePath("/wishlist");
-
-  const name = `${details.company}, ${details.role}`;
-  if (!details.description) return { notice: `Added ${name}, but couldn't find its description to score. Open Details to paste it in.` };
-  if (!(await getResume())) return { notice: `Added ${name}. Add your resume on My resume to score it.` };
-  try {
-    await runScore(id);
-  } catch (e) {
-    console.error(e);
-    return { notice: `Added ${name}, but scoring failed: ${e instanceof MatchError ? e.message : "unexpected error."}` };
-  }
-  return { added: name };
+  return { added: `${details.company}, ${details.role}` };
 }
 
 export async function signIn(_prev: FormState, form: FormData): Promise<FormState> {

@@ -9,7 +9,7 @@ export function WishlistAdd({ compact = false }: { compact?: boolean }) {
 
   // Clear the box only once a job is in; on an error the link stays so it can be fixed.
   useEffect(() => {
-    if ((state.added || state.notice) && inputRef.current) inputRef.current.value = "";
+    if (state.added && inputRef.current) inputRef.current.value = "";
   }, [state]);
 
   return (
@@ -36,19 +36,11 @@ export function WishlistAdd({ compact = false }: { compact?: boolean }) {
           disabled={pending}
           className="shrink-0 rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
         >
-          {pending ? "Reading & scoring…" : "Add"}
+          {pending ? "Reading…" : "Add"}
         </button>
       </div>
-      {pending && (
-        <p className="text-sm text-zinc-500">
-          {compact
-            ? "Usually ~10 seconds, up to a minute for hard-to-read pages…"
-            : "Reading the posting and comparing it with your resume. Usually about 10 seconds; pages that need a deeper read (LinkedIn, Amazon, JavaScript-heavy sites) can take up to a minute."}
-        </p>
-      )}
       {!pending && state.error && <p className="text-sm text-rose-600">{state.error}</p>}
-      {!pending && state.notice && <p className="text-sm text-amber-600">{state.notice}</p>}
-      {!pending && state.added && <p className="text-sm text-emerald-600">Added and scored {state.added}.</p>}
+      {!pending && state.added && <p className="text-sm text-emerald-600">Added {state.added}.</p>}
     </form>
   );
 }

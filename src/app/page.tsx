@@ -3,7 +3,7 @@ import { Board } from "@/components/Board";
 import { StatusSelect } from "@/components/StatusSelect";
 import { WishlistSidebar } from "@/components/WishlistSidebar";
 import { listApplications } from "@/lib/db";
-import { scoreColor, wishlistJobs, type Application } from "@/lib/statuses";
+import { wishlistJobs, type Application } from "@/lib/statuses";
 
 export const dynamic = "force-dynamic";
 
@@ -69,7 +69,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
                 <tr>
                   <th className="px-4 py-3">Company</th>
                   <th className="px-4 py-3">Role</th>
-                  <th className="px-4 py-3">Match</th>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Applied</th>
                   <th className="px-4 py-3">Location</th>
@@ -90,15 +89,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ v
                       )}
                     </td>
                     <td className="px-4 py-3">{a.role}</td>
-                    <td className="px-4 py-3">
-                      {a.match_score != null ? (
-                        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${scoreColor(a.match_score)}`}>
-                          {a.match_score}
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400">–</span>
-                      )}
-                    </td>
                     <td className="px-4 py-3">
                       <StatusSelect id={a.id} status={a.status} />
                     </td>

@@ -115,7 +115,7 @@ export function ApplicationForm({ action, initial, submitLabel }: Props) {
           rows={8}
           defaultValue={initial?.description ?? ""}
           className={input}
-          placeholder="Autofill usually pulls this in. Otherwise paste the posting here; it's what your resume gets matched against."
+          placeholder="Autofill usually pulls this in. Otherwise paste the posting here for reference."
         />
       </Field>
       <Field label="Notes">

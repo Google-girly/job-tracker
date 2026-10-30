@@ -40,9 +40,6 @@ export default async function RootLayout({
                 <Link href="/wishlist" className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
                   Wishlist
                 </Link>
-                <Link href="/resume" className="text-sm text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
-                  My resume
-                </Link>
                 <Link
                   href="/applications/new"
                   className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"

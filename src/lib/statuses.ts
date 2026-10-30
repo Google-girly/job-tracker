@@ -31,9 +31,6 @@ export type Application = {
   applied_date: string | null; // YYYY-MM-DD
   notes: string | null;
   description: string | null;
-  match_score: number | null;
-  match_json: string | null; // serialized Match from lib/match.ts
-  matched_at: string | null;
   created_at: string;
   updated_at: string;
   doc_count?: number;
@@ -65,15 +62,7 @@ export type AppDocument = {
   created_at: string;
 };
 
-export function scoreColor(score: number) {
-  if (score >= 80) return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200";
-  if (score >= 60) return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
-  return "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200";
-}
-
-// Wishlist = "Saved" jobs, best match first; unscored last, newest first.
+// Wishlist = "Saved" jobs, newest first.
 export function wishlistJobs(apps: Application[]): Application[] {
-  return apps
-    .filter((a) => a.status === "saved")
-    .sort((a, b) => (b.match_score ?? -1) - (a.match_score ?? -1) || b.created_at.localeCompare(a.created_at));
+  return apps.filter((a) => a.status === "saved").sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
