@@ -70,3 +70,10 @@ export function scoreColor(score: number) {
   if (score >= 60) return "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200";
   return "bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200";
 }
+
+// Wishlist = "Saved" jobs, best match first; unscored last, newest first.
+export function wishlistJobs(apps: Application[]): Application[] {
+  return apps
+    .filter((a) => a.status === "saved")
+    .sort((a, b) => (b.match_score ?? -1) - (a.match_score ?? -1) || b.created_at.localeCompare(a.created_at));
+}

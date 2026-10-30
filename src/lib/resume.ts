@@ -5,17 +5,20 @@ import * as db from "./db";
 // The base resume used for match scoring, stored as plain text in the settings table.
 export type Resume = { text: string; filename: string | null; updatedAt: string };
 
-export function getResume(): Resume | null {
-  const text = db.getSetting("resume_text");
-  if (!text) return null;
-  return { text, filename: db.getSetting("resume_filename"), updatedAt: db.getSetting("resume_updated_at") ?? "" };
+export async function getResume(): Promise<Resume | null> {
+  const [text, filename, updatedAt] = await Promise.all([
+    db.getSetting("resume_text"),
+    db.getSetting("resume_filename"),
+    db.getSetting("resume_updated_at"),
+  ]);
+  return text ? { text, filename, updatedAt: updatedAt ?? "" } : null;
 }
 
-export function saveResume(text: string, filename: string | null) {
-  db.setSetting("resume_text", text);
-  db.setSetting("resume_filename", filename);
-  // Same format as SQLite's datetime('now') so it compares with matched_at.
-  db.setSetting("resume_updated_at", new Date().toISOString().slice(0, 19).replace("T", " "));
+export async function saveResume(text: string, filename: string | null) {
+  await db.setSetting("resume_text", text);
+  await db.setSetting("resume_filename", filename);
+  // Same "YYYY-MM-DD HH:MM:SS" UTC format as timestamps from lib/db.ts, so it compares with matched_at.
+  await db.setSetting("resume_updated_at", new Date().toISOString().slice(0, 19).replace("T", " "));
 }
 
 export async function extractResumeText(file: File): Promise<string> {

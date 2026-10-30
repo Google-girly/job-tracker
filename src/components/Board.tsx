@@ -25,7 +25,8 @@ export function Board({ applications }: { applications: Application[] }) {
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4">
-      {STATUSES.map((s) => {
+      {/* Saved jobs live in the wishlist panel instead of a column. */}
+      {STATUSES.filter((s) => s.id !== "saved").map((s) => {
         const column = apps.filter((a) => a.status === s.id);
         return (
           <section

@@ -3,8 +3,8 @@ import { getResume } from "@/lib/resume";
 
 export const dynamic = "force-dynamic";
 
-export default function ResumePage() {
-  const resume = getResume();
+export default async function ResumePage() {
+  const resume = await getResume();
 
   return (
     <div className="mx-auto max-w-3xl">

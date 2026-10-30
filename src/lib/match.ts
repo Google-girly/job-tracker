@@ -1,10 +1,7 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-
-// Set MATCH_MODEL in .env.local to use a different model (e.g. claude-haiku-5-5 is much cheaper).
-const MODEL = process.env.MATCH_MODEL || "claude-opus-5-5";
+import { ClaudeError, claudeClient, MODEL, toClaudeError } from "./claude";
 
 const MatchSchema = z.object({
   score: z.number().int().describe("0-100 fit score, calibrated as described in the instructions"),
@@ -34,14 +31,10 @@ Be honest and calibrated; an inflated score wastes their time. Score guide:
 
 A requirement of 3+ years of professional experience, or a senior/staff title, should keep the score below 50 regardless of skill overlap. Internships, research, and substantial projects count as relevant experience but not as years of full-time experience. Treat closely related skills sensibly (for example, React experience partially covers "modern frontend frameworks"). Judge only from what the resume actually says; never assume skills it doesn't mention.`;
 
-export class MatchError extends Error {}
+export { ClaudeError as MatchError };
 
 export async function scoreMatch(resume: string, job: { company: string; role: string; description: string }): Promise<Match> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new MatchError("No API key yet. Add ANTHROPIC_API_KEY to .env.local in the job-tracker folder, then restart the dev server.");
-  }
-
-  const client = new Anthropic();
+  const client = claudeClient();
   let response;
   try {
     response = await client.beta.messages.parse({
@@ -61,18 +54,11 @@ export async function scoreMatch(resume: string, job: { company: string; role: s
       ],
     });
   } catch (error) {
-    if (error instanceof Anthropic.AuthenticationError) throw new MatchError("Your API key was rejected. Check ANTHROPIC_API_KEY in .env.local.");
-    if (error instanceof Anthropic.PermissionDeniedError) throw new MatchError("Your API key doesn't have access to this model.");
-    if (error instanceof Anthropic.RateLimitError) throw new MatchError("Rate limited by the API. Wait a minute and try again.");
-    if (error instanceof Anthropic.BadRequestError && /credit/i.test(error.message)) {
-      throw new MatchError("Your Anthropic account is out of credit. Add some at console.anthropic.com.");
-    }
-    if (error instanceof Anthropic.APIError) throw new MatchError(`The API returned an error (${error.status ?? "network"}). Try again.`);
-    throw error;
+    throw toClaudeError(error);
   }
 
-  if (response.stop_reason === "refusal") throw new MatchError("The model declined to score this posting.");
-  if (!response.parsed_output) throw new MatchError("Got an unexpected response from the model. Try again.");
+  if (response.stop_reason === "refusal") throw new ClaudeError("The model declined to score this posting.");
+  if (!response.parsed_output) throw new ClaudeError("Got an unexpected response from the model. Try again.");
   const match = response.parsed_output;
   return { ...match, score: Math.max(0, Math.min(100, Math.round(match.score))) };
 }

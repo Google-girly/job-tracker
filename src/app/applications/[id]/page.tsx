@@ -11,9 +11,8 @@ export const dynamic = "force-dynamic";
 
 export default async function EditApplication({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const app = getApplication(Number(id));
+  const [app, resume, documents] = await Promise.all([getApplication(Number(id)), getResume(), listDocuments(Number(id))]);
   if (!app) notFound();
-  const resume = getResume();
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-8">
@@ -37,7 +36,7 @@ export default async function EditApplication({ params }: { params: Promise<{ id
         hasDescription={Boolean(app.description)}
         resumeUpdatedAt={resume?.updatedAt ?? null}
       />
-      <Documents applicationId={app.id} documents={listDocuments(app.id)} />
+      <Documents applicationId={app.id} documents={documents} />
     </div>
   );
 }

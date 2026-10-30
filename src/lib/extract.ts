@@ -1,6 +1,7 @@
 import "server-only";
 import dns from "node:dns/promises";
 import net from "node:net";
+import { fetchJobWithClaude } from "./fetch-with-claude";
 
 export type JobDetails = {
   company?: string;
@@ -23,18 +24,59 @@ const SOURCES: [RegExp, string][] = [
   [/smartrecruiters\.com$/, "SmartRecruiters"],
 ];
 
-// Turn a URL into job details, using the ATS's public API when we recognize it and the page HTML otherwise.
+// Drop tracking parameters and "apply" suffixes so the same job pasted twice is recognized.
+export function canonicalJobUrl(raw: string): string {
+  const url = new URL(raw.trim());
+  url.hash = "";
+  for (const key of [...url.searchParams.keys()]) {
+    if (/^(utm_.*|ref|source|src|gh_src|lever-.*)$/i.test(key)) url.searchParams.delete(key);
+  }
+  if (url.hostname === "jobs.lever.co" || url.hostname === "jobs.ashbyhq.com") {
+    url.pathname = url.pathname.replace(/\/(apply|application)\/?$/, "");
+  }
+  return url.toString();
+}
+
+class BlockedUrlError extends Error {}
+
+// Turn a URL into job details. Reads the page directly first (free and fast); if that comes up short,
+// asks Claude to fetch it with its web tools, which gets past JavaScript-only pages and many bot blocks.
 export async function extractJob(rawUrl: string): Promise<JobDetails> {
   const url = new URL(rawUrl);
   if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Link must start with http:// or https://");
-
   const source = SOURCES.find(([re]) => re.test(url.hostname))?.[1] ?? "Company site";
+
+  let direct: JobDetails = {};
+  let directError: unknown;
+  try {
+    direct = await readDirectly(url);
+  } catch (e) {
+    if (e instanceof BlockedUrlError) throw e;
+    directError = e;
+  }
+  if (direct.company && direct.role && direct.description) return { source, ...direct };
+  if (!process.env.ANTHROPIC_API_KEY) {
+    if (directError) throw directError;
+    return { source, ...direct };
+  }
+
+  try {
+    return { source, ...direct, ...stripEmpty(await fetchJobWithClaude(url.toString(), direct)) };
+  } catch (e) {
+    console.error(`Claude couldn't read ${url}:`, e);
+    // Keep whatever the direct read found; otherwise report Claude's reason, which is usually more specific.
+    if (direct.role) return { source, ...direct };
+    throw e;
+  }
+}
+
+async function readDirectly(url: URL): Promise<JobDetails> {
   const fromApi = stripEmpty((await fromAtsApi(url).catch(() => undefined)) ?? {});
-  if (fromApi.role && fromApi.company) return { source, ...fromApi };
+  if (fromApi.role && fromApi.company) return fromApi;
 
   const html = await fetchText(url);
   const fromPage = fromJsonLd(html) ?? fromMeta(html);
-  return { source, ...fromPage, ...fromApi };
+  return { ...fromPage, ...fromApi };
 }
 
 async function fromAtsApi(url: URL): Promise<JobDetails | undefined> {
@@ -131,8 +173,11 @@ function fromMeta(html: string): JobDetails {
   const meta = (prop: string) =>
     html.match(new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]+content=["']([^"']*)["']`, "i"))?.[1] ??
     html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name)=["']${prop}["']`, "i"))?.[1];
-  const title = meta("og:title") ?? html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1];
-  return stripEmpty({ company: decode(meta("og:site_name")), role: decode(title) });
+  const title = decode(meta("og:title") ?? html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1]);
+  // LinkedIn: "New Grad Software Engineer at Acme — New York, NY | LinkedIn Jobs"
+  const linkedIn = title?.match(/^(.+?) at (.+?)(?: [—-] (.+?))? \| LinkedIn/);
+  if (linkedIn) return stripEmpty({ role: linkedIn[1], company: linkedIn[2], location: linkedIn[3] });
+  return stripEmpty({ company: decode(meta("og:site_name")), role: title });
 }
 
 // Fetch with a timeout, following redirects manually so every hop can be checked against private addresses.
@@ -167,7 +212,7 @@ async function assertPublicHost(hostname: string) {
       /^172\.(1[6-9]|2\d|3[01])\./.test(address) ||
       /^(::1$|f[cd]|fe80:)/i.test(address) ||
       address.startsWith("::ffff:127.");
-    if (blocked) throw new Error("That link points to a private address");
+    if (blocked) throw new BlockedUrlError("That link points to a private address");
   }
 }
 

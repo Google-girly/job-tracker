@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   experimental: {
-    // Room for a resume + cover letter (10 MB each) in one form submit.
-    serverActions: { bodySizeLimit: "25mb" },
+    // Matches Vercel's 4.5 MB request body limit; files are capped at 4 MB each in lib/documents.ts.
+    serverActions: { bodySizeLimit: "4.5mb" },
   },
 };
 
